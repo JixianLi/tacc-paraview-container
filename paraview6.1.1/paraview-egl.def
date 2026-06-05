@@ -67,9 +67,8 @@ From: ubuntu:24.04
         libcurl4-openssl-dev \
         libssl-dev \
         libtbb-dev \
-        libboost-all-dev \
+        libboost-dev \
         libeigen3-dev \
-        libgraphviz-dev \
         libsqlite3-dev \
         zlib1g-dev
     rm -rf /var/lib/apt/lists/*
@@ -121,6 +120,7 @@ From: ubuntu:24.04
         -DTTK_BUILD_VTK_WRAPPERS=ON \
         -DTTK_BUILD_STANDALONE_APPS=OFF \
         -DTTK_ENABLE_OPENMP=ON \
+        -DTTK_ENABLE_GRAPHVIZ=OFF \
         -DPython3_EXECUTABLE=/usr/local/bin/python3.13
     ninja
     ninja install
