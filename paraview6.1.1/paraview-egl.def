@@ -1,0 +1,147 @@
+# ParaView 6.1.1 with EGL rendering and the TTK (Topology ToolKit) plugin,
+# linked against uv-managed Python 3.13. Intended to be built directly on TACC
+# Lonestar6 with apptainer --fakeroot.
+#
+# TTK is pinned to a specific dev-branch commit because no TTK tagged release
+# yet supports ParaView 6.x. Bump the SHA below when a stable TTK release lands
+# or when you want newer dev fixes.
+#
+# Build (on Lonestar, in an idev session for the CPU budget):
+#     idev -p development -N 1 -n 128 -t 01:00:00
+#     cd $WORK
+#     APPTAINER_CACHEDIR=$SCRATCH/.apptainer_cache \
+#         apptainer build --fakeroot paraview-6.1.1-egl.sif paraview-egl.def
+#
+# Run on a GPU partition (--nv passes through the NVIDIA driver):
+#     apptainer exec --nv paraview-6.1.1-egl.sif pvbatch your_script.py
+#
+# Note: the build needs outbound HTTPS (apt, git, astral.sh, gitlab.kitware.com).
+# If a compute node blocks egress, build from a login node instead, but watch
+# the per-process CPU-time limit there.
+
+Bootstrap: docker
+From: ubuntu:24.04
+
+%labels
+    ParaView v6.1.1
+    Rendering EGL
+    Python 3.13 (uv-managed)
+
+%environment
+    export PARAVIEW_PREFIX=/opt/paraview
+    export PATH=/opt/paraview/bin:/usr/local/bin:${PATH}
+    export LD_LIBRARY_PATH=/opt/paraview/lib:${LD_LIBRARY_PATH:-}
+
+%post
+    set -eux
+    export DEBIAN_FRONTEND=noninteractive
+    export PARAVIEW_VERSION=v6.1.1
+    export PARAVIEW_PREFIX=/opt/paraview
+    export UV_INSTALL_DIR=/usr/local/bin
+    export UV_PYTHON_INSTALL_DIR=/opt/uv-python
+
+    # apt's privilege-drop sandbox can't operate under --fakeroot (uid 42 isn't
+    # in the user-namespace map); disable it so apt-get can fetch as root.
+    echo 'APT::Sandbox::User "root";' > /etc/apt/apt.conf.d/no-sandbox
+
+    apt-get update
+    apt-get install -y --no-install-recommends \
+        build-essential \
+        cmake \
+        ninja-build \
+        git \
+        ca-certificates \
+        curl \
+        pkg-config \
+        libegl1-mesa-dev \
+        libgl1-mesa-dev \
+        libglvnd-dev \
+        libpng-dev \
+        libjpeg-dev \
+        libtiff-dev \
+        libhdf5-dev \
+        libnetcdf-dev \
+        libxml2-dev \
+        libexpat1-dev \
+        libfreetype-dev \
+        libcurl4-openssl-dev \
+        libssl-dev \
+        libtbb-dev \
+        libboost-all-dev \
+        libeigen3-dev \
+        libgraphviz-dev \
+        libsqlite3-dev \
+        zlib1g-dev
+    rm -rf /var/lib/apt/lists/*
+
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    uv python install 3.13
+    PYBIN="$(uv python find 3.13)"
+    ln -sf "${PYBIN}" /usr/local/bin/python3.13
+    ln -sf "${PYBIN}" /usr/local/bin/python3
+    ln -sf "${PYBIN}" /usr/local/bin/python
+    chmod -R a+rX /opt/uv-python
+
+    mkdir -p /src && cd /src
+    git clone --recursive --depth 1 --shallow-submodules \
+        --branch ${PARAVIEW_VERSION} \
+        https://gitlab.kitware.com/paraview/paraview.git
+
+    mkdir -p /src/paraview/build && cd /src/paraview/build
+    cmake .. \
+        -GNinja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=${PARAVIEW_PREFIX} \
+        -DPARAVIEW_BUILD_EDITION=CANONICAL \
+        -DPARAVIEW_USE_PYTHON=ON \
+        -DPARAVIEW_USE_QT=OFF \
+        -DPARAVIEW_USE_MPI=OFF \
+        -DVTK_OPENGL_HAS_EGL=ON \
+        -DVTK_OPENGL_HAS_OSMESA=OFF \
+        -DVTK_USE_X=OFF \
+        -DVTK_SMP_IMPLEMENTATION_TYPE=TBB \
+        -DPython3_EXECUTABLE=/usr/local/bin/python3.13
+    ninja
+    ninja install
+    # Free ParaView source tree before building TTK (saves ~10 GB in build stage)
+    rm -rf /src/paraview
+
+    # Build TTK as a ParaView plugin from a pinned dev-branch commit
+    TTK_COMMIT=23d59bf147656d031705c99d3249e001b5bfb9c9
+    cd /src
+    git clone https://github.com/topology-tool-kit/ttk.git
+    cd ttk && git checkout ${TTK_COMMIT}
+    mkdir build && cd build
+    cmake .. \
+        -GNinja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=${PARAVIEW_PREFIX} \
+        -DParaView_DIR=${PARAVIEW_PREFIX}/lib/cmake/paraview-6.1 \
+        -DTTK_BUILD_PARAVIEW_PLUGINS=ON \
+        -DTTK_BUILD_VTK_WRAPPERS=ON \
+        -DTTK_BUILD_STANDALONE_APPS=OFF \
+        -DTTK_ENABLE_OPENMP=ON \
+        -DPython3_EXECUTABLE=/usr/local/bin/python3.13
+    ninja
+    ninja install
+    cd / && rm -rf /src
+
+    # Symlink ParaView binaries into /usr/local/bin so they're on PATH even when
+    # %environment isn't applied (e.g. apptainer exec --cleanenv).
+    for bin in ${PARAVIEW_PREFIX}/bin/*; do
+        [ -x "${bin}" ] && [ ! -d "${bin}" ] && \
+            ln -sf "${bin}" "/usr/local/bin/$(basename "${bin}")"
+    done
+
+    PV_SITE="$(ls -d ${PARAVIEW_PREFIX}/lib/python3.13/site-packages 2>/dev/null \
+               || ls -d ${PARAVIEW_PREFIX}/lib/python*/site-packages | head -1)"
+    UV_SITE="$(/usr/local/bin/python3.13 -c 'import site; print(site.getsitepackages()[0])')"
+    echo "${PV_SITE}" > "${UV_SITE}/paraview.pth"
+
+    /usr/local/bin/python3.13 -c "import paraview; print('paraview module imported from', paraview.__file__)"
+    ${PARAVIEW_PREFIX}/bin/pvbatch --version
+    # Verify TTK plugin landed in ParaView's plugin tree
+    ls ${PARAVIEW_PREFIX}/lib/paraview-*/plugins/TopologyToolKit*
+
+%runscript
+    exec /bin/bash "$@"

@@ -1,0 +1,21 @@
+# Apptainer build artifacts
+*.sif
+*.img
+.apptainer_cache/
+.singularity_cache/
+
+# Build directories
+build/
+_build/
+
+# Editor / OS cruft
+.DS_Store
+*.swp
+*~
+.idea/
+.vscode/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
