@@ -37,7 +37,7 @@ From: ubuntu:24.04
 %environment
     export PARAVIEW_PREFIX=/opt/paraview
     export PATH=/opt/paraview/bin:/usr/local/bin:${PATH}
-    export LD_LIBRARY_PATH=/opt/paraview/lib:${LD_LIBRARY_PATH:-}
+    export LD_LIBRARY_PATH=/opt/paraview/lib:/opt/ospray/lib:${LD_LIBRARY_PATH:-}
 
 %post
     export BACKEND=egl

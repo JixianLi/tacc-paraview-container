@@ -13,6 +13,10 @@
 #   TTK_COMMIT — TTK dev-branch SHA. Pinned because no TTK tagged release yet
 #                supports ParaView 6.x; bump when a stable release lands or
 #                when you want newer dev fixes.
+#   OSPRAY_VERSION — Intel's OSPRay SDK release tag. Installed from Intel's
+#                    prebuilt Linux tarball (Ubuntu 24.04 doesn't package
+#                    OSPRay / OpenVKL / OIDN). Tarball bundles matched
+#                    versions of Embree, OIDN, OpenVKL, rkcommon, and ISPC.
 
 set -eux
 
@@ -37,6 +41,8 @@ export DEBIAN_FRONTEND=noninteractive
 PARAVIEW_VERSION=v6.1.1
 PARAVIEW_PREFIX=/opt/paraview
 TTK_COMMIT=23d59bf147656d031705c99d3249e001b5bfb9c9
+OSPRAY_VERSION=3.2.0
+OSPRAY_PREFIX=/opt/ospray
 export UV_INSTALL_DIR=/usr/local/bin
 export UV_PYTHON_INSTALL_DIR=/opt/uv-python
 
@@ -68,11 +74,18 @@ apt-get install -y --no-install-recommends \
     libboost-dev \
     libeigen3-dev \
     libsqlite3-dev \
-    zlib1g-dev \
-    libospray-dev \
-    libembree-dev \
-    libopenimagedenoise-dev
+    zlib1g-dev
 rm -rf /var/lib/apt/lists/*
+
+# OSPRay + its render-kit deps (Embree, OIDN, OpenVKL, rkcommon, ISPC) aren't
+# in Ubuntu 24.04, so install Intel's prebuilt Linux SDK tarball into
+# ${OSPRAY_PREFIX}. ParaView's raytracing module picks it up via
+# CMAKE_PREFIX_PATH below.
+curl -LsSf -o /tmp/ospray.tar.gz \
+    "https://github.com/RenderKit/OSPRay/releases/download/v${OSPRAY_VERSION}/ospray-${OSPRAY_VERSION}.x86_64.linux.tar.gz"
+mkdir -p "${OSPRAY_PREFIX}"
+tar -xzf /tmp/ospray.tar.gz -C "${OSPRAY_PREFIX}" --strip-components=1
+rm /tmp/ospray.tar.gz
 
 curl -LsSf https://astral.sh/uv/install.sh | sh
 uv python install 3.13
@@ -97,6 +110,7 @@ cmake .. \
     -DPARAVIEW_USE_QT=OFF \
     -DPARAVIEW_USE_MPI=OFF \
     -DPARAVIEW_ENABLE_RAYTRACING=ON \
+    -DCMAKE_PREFIX_PATH=${OSPRAY_PREFIX} \
     "${VTK_BACKEND_FLAGS[@]}" \
     -DVTK_USE_X=OFF \
     -DVTK_SMP_IMPLEMENTATION_TYPE=TBB \
