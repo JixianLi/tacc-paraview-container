@@ -153,4 +153,22 @@ echo "${PV_SITE}" > "${UV_SITE}/paraview.pth"
 
 /usr/local/bin/python3.13 -c "import paraview; print('paraview module imported from', paraview.__file__)"
 ${PARAVIEW_PREFIX}/bin/pvbatch --version
-ls ${PARAVIEW_PREFIX}/lib/paraview-*/plugins/TopologyToolKit*
+
+# Verify TTK installed a loadable plugin somewhere under the ParaView prefix.
+# ParaView 6.x's exact plugin subdir layout (lib/paraview-X.Y/plugins vs.
+# lib/x86_64-linux-gnu/... vs. share/...) isn't stable, so search broadly and
+# dump diagnostics if nothing matches.
+set +x
+TTK_PLUGIN="$(find "${PARAVIEW_PREFIX}" -name 'TopologyToolKit*.so' 2>/dev/null | head -1)"
+if [ -z "${TTK_PLUGIN}" ]; then
+    echo "ERROR: TopologyToolKit*.so not found under ${PARAVIEW_PREFIX}" >&2
+    echo >&2
+    echo "Any file with TTK / topology in the name:" >&2
+    find "${PARAVIEW_PREFIX}" \( -iname '*ttk*' -o -iname '*topology*' \) 2>/dev/null >&2 || true
+    echo >&2
+    echo "ParaView plugin directories under prefix:" >&2
+    find "${PARAVIEW_PREFIX}" -type d -name plugins 2>/dev/null >&2 || true
+    exit 1
+fi
+echo "TTK plugin found: ${TTK_PLUGIN}"
+set -x
