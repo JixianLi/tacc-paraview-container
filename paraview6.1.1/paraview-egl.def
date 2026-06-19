@@ -32,7 +32,7 @@ From: ubuntu:24.04
     Python 3.13 (uv-managed)
 
 %files
-    build-common.sh /tmp/build-common.sh
+    build-common.sh /opt/build-common.sh
 
 %environment
     export PARAVIEW_PREFIX=/opt/paraview
@@ -41,8 +41,8 @@ From: ubuntu:24.04
 
 %post
     export BACKEND=egl
-    bash /tmp/build-common.sh
-    rm /tmp/build-common.sh
+    bash /opt/build-common.sh
+    rm /opt/build-common.sh
 
 %runscript
     exec /bin/bash "$@"
