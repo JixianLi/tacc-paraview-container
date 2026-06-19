@@ -25,6 +25,12 @@ ParaView client runs on your laptop.
 | EGL    | `paraview6.1.1/paraview-egl.def`    | GPU nodes — hardware-accelerated rendering via the host NVIDIA driver (`--nv`) |
 | OSMesa | `paraview6.1.1/paraview-osmesa.def` | Any partition — software rendering, no GPU required |
 
+The two `.def` files are thin wrappers that set `BACKEND={egl,osmesa}` and run
+[`paraview6.1.1/build-common.sh`](paraview6.1.1/build-common.sh), which holds
+the actual build steps (apt deps, ParaView + TTK configure/build, Python
+wiring). Bump the ParaView tag, the TTK commit, or any shared build flag in
+that one script.
+
 ## Requirements
 
 - A TACC system with `apptainer` available (e.g. Lonestar6)
@@ -71,7 +77,7 @@ compute node and forward the port to your laptop.
 
 ## Notes
 
-- The TTK commit is pinned in `paraview-egl.def` (`TTK_COMMIT=…`). Bump it
+- The TTK commit is pinned in `build-common.sh` (`TTK_COMMIT=…`). Bump it
   when a TTK tagged release with ParaView 6.x support lands or when you want
   newer dev fixes.
 - `.sif` files are gitignored — built images are large and belong on

@@ -56,11 +56,21 @@ fi
 
 mkdir -p "${APPTAINER_CACHEDIR}"
 
+# Make OUTPUT_SIF absolute before we cd elsewhere, so a user-supplied
+# relative --output keeps pointing at the original cwd.
+case "${OUTPUT_SIF}" in
+    /*) ;;
+    *) OUTPUT_SIF="$(pwd)/${OUTPUT_SIF}" ;;
+esac
+
 echo "Building ${OUTPUT_SIF}"
 echo "  from:  ${DEF_FILE}"
 echo "  cache: ${APPTAINER_CACHEDIR}"
 echo
 
+# %files in the def references build-common.sh by relative path; apptainer
+# resolves it from the cwd at build time, so build from the script's dir.
+cd "${SCRIPT_DIR}"
 time apptainer build --fakeroot "${OUTPUT_SIF}" "${DEF_FILE}"
 
 echo
