@@ -68,7 +68,10 @@ apt-get install -y --no-install-recommends \
     libboost-dev \
     libeigen3-dev \
     libsqlite3-dev \
-    zlib1g-dev
+    zlib1g-dev \
+    libospray-dev \
+    libembree-dev \
+    libopenimagedenoise-dev
 rm -rf /var/lib/apt/lists/*
 
 curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -93,6 +96,7 @@ cmake .. \
     -DPARAVIEW_USE_PYTHON=ON \
     -DPARAVIEW_USE_QT=OFF \
     -DPARAVIEW_USE_MPI=OFF \
+    -DPARAVIEW_ENABLE_RAYTRACING=ON \
     "${VTK_BACKEND_FLAGS[@]}" \
     -DVTK_USE_X=OFF \
     -DVTK_SMP_IMPLEMENTATION_TYPE=TBB \

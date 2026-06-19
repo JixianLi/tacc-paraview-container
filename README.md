@@ -14,6 +14,8 @@ ParaView client runs on your laptop.
 - ParaView 6.1.1 (canonical edition, Python enabled, MPI off)
 - TTK plugin built against ParaView 6.x (pinned to a dev-branch commit, since
   no TTK tagged release supports ParaView 6.x yet)
+- OSPRay raytracing back end (with Embree and Open Image Denoise), available
+  alongside the rasterizer selected by the backend flag
 - Python 3.13 (managed by [uv](https://docs.astral.sh/uv/)) with the `paraview`
   module made importable via a `.pth` file
 - TBB-based SMP backend
