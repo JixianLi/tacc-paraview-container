@@ -81,8 +81,12 @@ rm -rf /var/lib/apt/lists/*
 # in Ubuntu 24.04, so install Intel's prebuilt Linux SDK tarball into
 # ${OSPRAY_PREFIX}. ParaView's raytracing module picks it up via
 # CMAKE_PREFIX_PATH below.
+# RenderKit's release filenames use the same arch tokens that `uname -m`
+# emits (x86_64, aarch64), so we can build the URL from the native arch
+# directly. This keys off the *build host* — correct for native builds on
+# x86_64 and ARM (Vista), wrong only for cross/emulated builds.
 curl -LsSf -o /tmp/ospray.tar.gz \
-    "https://github.com/RenderKit/OSPRay/releases/download/v${OSPRAY_VERSION}/ospray-${OSPRAY_VERSION}.x86_64.linux.tar.gz"
+    "https://github.com/RenderKit/OSPRay/releases/download/v${OSPRAY_VERSION}/ospray-${OSPRAY_VERSION}.$(uname -m).linux.tar.gz"
 mkdir -p "${OSPRAY_PREFIX}"
 tar -xzf /tmp/ospray.tar.gz -C "${OSPRAY_PREFIX}" --strip-components=1
 rm /tmp/ospray.tar.gz
