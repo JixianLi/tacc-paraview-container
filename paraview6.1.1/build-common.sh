@@ -88,7 +88,10 @@ rm -rf /var/lib/apt/lists/*
 curl -LsSf -o /tmp/ospray.tar.gz \
     "https://github.com/RenderKit/OSPRay/releases/download/v${OSPRAY_VERSION}/ospray-${OSPRAY_VERSION}.$(uname -m).linux.tar.gz"
 mkdir -p "${OSPRAY_PREFIX}"
-tar -xzf /tmp/ospray.tar.gz -C "${OSPRAY_PREFIX}" --strip-components=1
+# Intel packs the tarball with files owned by their packager's uid/gid (1010).
+# Under a --fakeroot build that uid isn't mapped, so tar's default
+# restore-ownership-as-root fails with EINVAL. Extract as the current user.
+tar -xzf /tmp/ospray.tar.gz -C "${OSPRAY_PREFIX}" --strip-components=1 --no-same-owner
 rm /tmp/ospray.tar.gz
 
 curl -LsSf https://astral.sh/uv/install.sh | sh
